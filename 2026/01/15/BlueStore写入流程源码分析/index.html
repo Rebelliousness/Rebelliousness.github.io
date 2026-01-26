@@ -7,7 +7,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://rebelliousness.github.io/img/butterfly-icon.png">
 <meta property="article:published_time" content="2026-01-14T16:25:14.000Z">
-<meta property="article:modified_time" content="2026-01-26T16:07:20.985Z">
+<meta property="article:modified_time" content="2026-01-26T16:10:08.218Z">
 <meta property="article:author" content="Rebellion">
 <meta property="article:tag" content="ceph">
 <meta name="twitter:card" content="summary">
@@ -18,7 +18,7 @@
   "url": "https://rebelliousness.github.io/2026/01/15/BlueStore%E5%86%99%E5%85%A5%E6%B5%81%E7%A8%8B%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/",
   "image": "https://rebelliousness.github.io/img/butterfly-icon.png",
   "datePublished": "2026-01-14T16:25:14.000Z",
-  "dateModified": "2026-01-26T16:07:20.985Z",
+  "dateModified": "2026-01-26T16:10:08.218Z",
   "author": [
     {
       "@type": "Person",
@@ -159,7 +159,7 @@
   isHighlightShrink: false,
   isToc: true,
   pageType: 'post'
-}</script><meta name="generator" content="Hexo 8.0.0"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Hexo</span></a><a class="nav-page-title" href="/"><span class="site-name">BlueStore写入流程源码分析</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">BlueStore写入流程源码分析</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-01-14T16:25:14.000Z" title="Created 2026-01-15 00:25:14">2026-01-15</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-01-26T16:07:20.985Z" title="Updated 2026-01-27 00:07:20">2026-01-27</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="一、准备工作"><a href="#一、准备工作" class="headerlink" title="一、准备工作"></a>一、准备工作</h1><h2 id="1、配置ceph-conf，防止osd-op-thread线程超时suicide"><a href="#1、配置ceph-conf，防止osd-op-thread线程超时suicide" class="headerlink" title="1、配置ceph.conf，防止osd_op_thread线程超时suicide"></a>1、配置ceph.conf，防止osd_op_thread线程超时suicide</h2><p>在ceph.conf文件的OSD组中添加字段osd_op_thread_suicide_timeout &#x3D; 1800来调整osd_op_thread的自杀时间（单位秒），避免时间过短导致osd_op_thread影响调试</p>
+}</script><meta name="generator" content="Hexo 8.0.0"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Hexo</span></a><a class="nav-page-title" href="/"><span class="site-name">BlueStore写入流程源码分析</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">BlueStore写入流程源码分析</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-01-14T16:25:14.000Z" title="Created 2026-01-15 00:25:14">2026-01-15</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-01-26T16:10:08.218Z" title="Updated 2026-01-27 00:10:08">2026-01-27</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="一、准备工作"><a href="#一、准备工作" class="headerlink" title="一、准备工作"></a>一、准备工作</h1><h2 id="1、配置ceph-conf，防止osd-op-thread线程超时suicide"><a href="#1、配置ceph-conf，防止osd-op-thread线程超时suicide" class="headerlink" title="1、配置ceph.conf，防止osd_op_thread线程超时suicide"></a>1、配置ceph.conf，防止osd_op_thread线程超时suicide</h2><p>在ceph.conf文件的OSD组中添加字段osd_op_thread_suicide_timeout &#x3D; 1800来调整osd_op_thread的自杀时间（单位秒），避免时间过短导致osd_op_thread影响调试</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">//file:ceph.conf</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">[OSD]</span><br><span class="line">...</span><br><span class="line">osd_op_thread_suicide_timeout = 1800</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
 
 <h2 id="2、创建pool"><a href="#2、创建pool" class="headerlink" title="2、创建pool"></a>2、创建pool</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ./build</span><br><span class="line">./bin/ceph --conf ./ceph.conf osd pool create mypool 64 64</span><br><span class="line"><span class="comment"># 查看该pool详细信息（副本数、PG数、状态等）</span></span><br><span class="line">./bin/ceph --conf ./ceph.conf osd pool get mypool all</span><br></pre></td></tr></table></figure>
@@ -360,7 +360,13 @@
 </li>
 <li><p>15292行判断未启用bluestore_debug_omit_block_device_write则执行如下操作：</p>
 <ul>
-<li>15293~15305行，若b_len&lt;prefer_deferred_size（延迟写入大小阈值）则执行延迟写入，其中15296行创建bluestore_deferred_op_t* op；15297行设置该op的操作属性为bluestore_deferred_op_t::OP_WRITE；15298~15303行执行bluestore_blob_t::map；15304行设置op的数据指向bl；</li>
+<li>15293~15305行，若b_len&lt;prefer_deferred_size（延迟写入大小阈值）则执行延迟写入<ul>
+<li>其中15296行创建bluestore_deferred_op_t* op；</li>
+<li>15297行设置该op的操作属性为bluestore_deferred_op_t::OP_WRITE；</li>
+<li>15298~15303行执行bluestore_blob_t::map；</li>
+<li>15304行设置op的数据指向bl；</li>
+</ul>
+</li>
 <li>15305~15310行，若b_len&gt;prefer_deferred_size（延迟写入大小阈值），其中15306~15309行执行bluestore_blob_t::map_bl;</li>
 </ul>
 <blockquote>
