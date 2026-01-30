@@ -7,7 +7,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://rebelliousness.github.io/img/butterfly-icon.png">
 <meta property="article:published_time" content="2026-01-14T16:25:14.000Z">
-<meta property="article:modified_time" content="2026-01-28T16:47:59.966Z">
+<meta property="article:modified_time" content="2026-01-30T18:14:12.054Z">
 <meta property="article:author" content="Rebellion">
 <meta property="article:tag" content="ceph">
 <meta name="twitter:card" content="summary">
@@ -18,7 +18,7 @@
   "url": "https://rebelliousness.github.io/2026/01/15/BlueStore%E5%86%99%E5%85%A5%E6%B5%81%E7%A8%8B%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/",
   "image": "https://rebelliousness.github.io/img/butterfly-icon.png",
   "datePublished": "2026-01-14T16:25:14.000Z",
-  "dateModified": "2026-01-28T16:47:59.966Z",
+  "dateModified": "2026-01-30T18:14:12.054Z",
   "author": [
     {
       "@type": "Person",
@@ -159,7 +159,7 @@
   isHighlightShrink: false,
   isToc: true,
   pageType: 'post'
-}</script><meta name="generator" content="Hexo 8.0.0"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Hexo</span></a><a class="nav-page-title" href="/"><span class="site-name">BlueStore写入流程源码分析</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">BlueStore写入流程源码分析</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-01-14T16:25:14.000Z" title="Created 2026-01-15 00:25:14">2026-01-15</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-01-28T16:47:59.966Z" title="Updated 2026-01-29 00:47:59">2026-01-29</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h1><h2 id="配置ceph-conf，防止osd-op-thread线程超时suicide"><a href="#配置ceph-conf，防止osd-op-thread线程超时suicide" class="headerlink" title="配置ceph.conf，防止osd_op_thread线程超时suicide"></a>配置ceph.conf，防止osd_op_thread线程超时suicide</h2><p>在ceph.conf文件的OSD组中添加字段osd_op_thread_suicide_timeout &#x3D; 1800来调整osd_op_thread的自杀时间（单位秒），避免时间过短导致osd_op_thread影响调试</p>
+}</script><meta name="generator" content="Hexo 8.0.0"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Hexo</span></a><a class="nav-page-title" href="/"><span class="site-name">BlueStore写入流程源码分析</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">BlueStore写入流程源码分析</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-01-14T16:25:14.000Z" title="Created 2026-01-15 00:25:14">2026-01-15</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-01-30T18:14:12.054Z" title="Updated 2026-01-31 02:14:12">2026-01-31</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h1><h2 id="配置ceph-conf，防止osd-op-thread线程超时suicide"><a href="#配置ceph-conf，防止osd-op-thread线程超时suicide" class="headerlink" title="配置ceph.conf，防止osd_op_thread线程超时suicide"></a>配置ceph.conf，防止osd_op_thread线程超时suicide</h2><p>在ceph.conf文件的OSD组中添加字段osd_op_thread_suicide_timeout &#x3D; 1800来调整osd_op_thread的自杀时间（单位秒），避免时间过短导致osd_op_thread影响调试</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">//file:ceph.conf</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">[OSD]</span><br><span class="line">...</span><br><span class="line">osd_op_thread_suicide_timeout = 1800</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
 
 <h2 id="创建pool"><a href="#创建pool" class="headerlink" title="创建pool"></a>创建pool</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ./build</span><br><span class="line">./bin/ceph --conf ./ceph.conf osd pool create mypool 64 64</span><br><span class="line"><span class="comment"># 查看该pool详细信息（副本数、PG数、状态等）</span></span><br><span class="line">./bin/ceph --conf ./ceph.conf osd pool get mypool all</span><br></pre></td></tr></table></figure>
@@ -384,7 +384,7 @@
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[&amp;](<span class="type">uint64_t</span> offset, <span class="type">uint64_t</span> length) &#123;</span><br><span class="line">     op-&gt;extents.<span class="built_in">emplace_back</span>(<span class="built_in">bluestore_pextent_t</span>(offset, length));</span><br><span class="line">     <span class="keyword">return</span> <span class="number">0</span>;</span><br></pre></td></tr></table></figure>
 
 <p>​    即将受本次写入影响的pextent的受影响区域以struct bluestore_pextent_t（如下图所示，该结构体表示物理磁盘上一段连续的空间，其中offset表示该空间起始处的偏移，length表示该空间的长度）的形式加入op-&gt;extents；</p>
-<p>​    <img src="image-20260126222132060.png" alt="image-20260126222132060" style="zoom:67%;"></p>
+<img src="image-20260126222132060.png" alt="image-20260126222132060" style="zoom:67%;">
 </li>
 <li><p><strong>bluestore_blob_t::map_bl</strong></p>
 <img src="image-20260126221636703.png" alt="image-20260126221636703" style="zoom:67%;">
@@ -412,10 +412,40 @@
 <p><strong>punch_hole和set_lextent</strong></p>
 <img src="image-20260127212324900.png" alt="image-20260127212324900" style="zoom: 80%;">
 
+<ul>
+<li>4369行通过seek_lextent找到一个offset对应的lextent迭代器p</li>
+<li>4376~4385行，若满足p-&gt;logical_offset&lt;offset且p-&gt;logical_end()&gt;end，则执行如下操作：<ul>
+<li>4378~4381行，为p指向的lextent中未修改的头部部分创建OldExtent并插入old_extents；</li>
+<li>4382行，为p指向的lextent中未修改的尾部部分调用add函数，该函数为尾部部分创建Extent作为lextent并插入exteng_map;</li>
+<li>4384行，将p指向的lexten的长度设置为头部部分长度；</li>
+<li>4385行，退出循环；</li>
+</ul>
+</li>
+<li>4386~4395行，若满足p-&gt;logical_offset&lt;offset且p-&gt;logical_end()&lt;&#x3D;end，则执行如下操作：<ul>
+<li>4389~4392行，为p指向的lextentlextent中未修改的头部部分创建OldExtent并插入old_extents；</li>
+<li>4393行，将p指向的lextent对应的长度设置为头部部分长度；</li>
+<li>4394行，将p指向下一个lextent；</li>
+<li>4395行，结束本次循环；</li>
+</ul>
+</li>
+<li>4391~4405行，若满足p-&gt;logical_offset&gt;&#x3D;offset且p-&gt;logical_offset+p-&gt;length&lt;&#x3D;end，则执行如下操作：<ul>
+<li>4400~4402行，为p指向的整个lextent创建OldExtent并插入old_extents；</li>
+<li>4403行，删除p指向的lextent并将p指向下一个lextent；</li>
+<li>4404行，结束本次循环；</li>
+</ul>
+</li>
+<li>4407~4414行，若满足如下条件p-&gt;logical_offset&gt;&#x3D;offset且p-&gt;logical_offset+p-&gt;length&gt;end，则执行如下操作：<ul>
+<li>4407~4410行，为p指向的lextent中未修改的尾部部分创建OldExtent并插入old_extents；</li>
+<li>4412行，为p指向的lextent中未修改的尾部部分调用add函数，该函数为尾部部分创建Extent作为lextent并插入exteng_map;</li>
+<li>4413行，删除p指向的lextent；</li>
+<li>4414行，退出循环；</li>
+</ul>
+</li>
+</ul>
 <img src="image-20260127211649555.png" alt="image-20260127211649555" style="zoom:67%;">
 
 <ul>
-<li>4429~4431行，</li>
+<li>4429~4431行，将原先对应[logical_offset,logical_offset+length)范围的lextent执行punch_hole函数；</li>
 <li>4433行创建Extent，该Extent的b为该Extent使用的blob，logical_offset为写入数据在Onode中逻辑偏移，blob_offset为数据在blob上的偏移（不包括头部填充），length为写入数据的长度；</li>
 <li>4434行将创建的Extent作为lextent插入extent_map中；</li>
 <li>4435行判断是否需要重新分片；</li>
