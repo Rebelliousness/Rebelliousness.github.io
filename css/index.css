@@ -1765,11 +1765,24 @@ h6 {
   color: var(--text-highlight-color);
   font-weight: bold;
 }
-h1 code,
-h2 code,
-h3 code,
-h4 code,
-h5 code,
+h1 {
+  font-size: 28px;
+}
+h2 {
+  font-size: 24px;
+}
+h3 {
+  font-size: 20px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 14px;
+}
 h6 code {
   font-size: inherit !important;
 }
